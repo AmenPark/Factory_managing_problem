@@ -2,12 +2,13 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
-from .models import userKey,userScore,userProgress
+from .models import userKey,userProgress
+from manage.models import senarioInfo
 import hashlib
 import random
 import string
 
-class startTest(APIVIEW):
+class startTest(APIView):
     def post(self,request):
         data = request.data
         try:
@@ -21,7 +22,7 @@ class startTest(APIVIEW):
         return (Response(data={"key":digest},status=200))
 
 
-class startProblem(APIVIEW):
+class startProblem(APIView):
     def post(self,request):
         data = request.data
         try:
@@ -32,20 +33,18 @@ class startProblem(APIVIEW):
         try:
             p = data["problem"]
             problemkey = "".join(random.choices(string.digits + string.ascii_letters, k=16))
-            if p==1:
-                obj=userProgress(user=user,problemkey=problemkey,senarioNumber=1)
-                data = {"key" : problemkey,
-                        "max_time" : 120,
-                        "part_timer" : 3,
-                        "items": ["chocolate", "milk", "cake", "ramen", "kimchi", "kimbab", "coffee","hotdog"]
-                        "customer_capacity" : 10,
-                        "max_item" : 5}
-                obj.save()
-                scoreObj=userScore(problemkey=obj)
-                scoreObj.save()
-                return (Response(data=data,status=200))
-
-            return(Response(data={"message":"Bad Request"},status=400))
+            senariodata = senarionInfo.objects.get(id=p-1)
+            obj=userProgress(user=user,problemkey=problemkey,senarioNumber=1)
+            index=obj.id
+            problemkey += str(index).zfill(16)
+            data = {"key" : problemkey,
+                    "max_time" : senariodata.max_time,
+                    "part_timer" : senariodata.part_timer,
+                    "items": senariodata.items,
+                    "customer_capacity" : senariodata.customer_capacity,
+                    "max_item" : senariodata.max_item}
+            obj.save()
+            return (Response(data=data,status=200))
         except:
             return(Response(data={"message":"Bad Request"},status=400))
 
