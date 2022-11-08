@@ -32,6 +32,9 @@ class getCustomers(APIView):
             assert (key == user.problemKey)
         except:
             return Response(data={"message": "INVALID KEY"}, status=404)
+        if user.end == True:
+            return Response(data={"message":"DONE"})
+
         accepted=request.data.GET("accepted")
         rejected=request.data.GET("rejected")
         work=request.data.GET("action")
@@ -40,7 +43,7 @@ class getCustomers(APIView):
         today_customer_checker={today_customer[i*6:(i+1)*6] for i in range(len(today_customer)//6)}
         waiting_line = [user.waitings[i*6:(i+1)*6] for i in range(len(user.waitings)//6)]
         waiting_customer_datas=[customerModel.objects.get(id=int(CID)) for CID in waiting_line]
-
+        sold_count = user.soldNum
         # check 15min passed
         to_delete=[]
         for idx,w in waiting_customer_datas:
@@ -74,18 +77,49 @@ class getCustomers(APIView):
                 today_customer_checker.remove(r)
 
         itemstatus = user.itemstatus
-        itemnums = [int(itemstatus[])]
+        itemnums = [int(itemstatus[i*3:(i+1)*3]) for i in range(len(itemstatus)//3)]
         part_timer = senarioinfo.part_timer
-        p = 0
-        for w in work:
+        failed=0
+        for p, w in enumerate(work):
             if p == part_timer:
                 break
-            p+=1
             if len(w)<6:
+                idx = int(w)
+                itemnums[idx] = senarioinfo.max_item
+            else:
+                try:
+                    waiting_line.remove(w)
+                    customer = customerModel.objects.get(id=int(w))
+                    needs = customer.needs
+                    needs_list = [int(needs[i*3:(i+1)*3]) for i in range(len(needs)//3)]
+                    next_itemnums=[0]*len(itemnums)
+                    try:
+                        for idx, (x,y) in enumerate(zip(itemnums,needs_list)):
+                            assert x>=y
+                            next_itemnums[idx] = x-y
+                        itemnums = next_itemnums
+                        user.waitingTimeSquare += (today - customer.today)**2
+                        sold_count += sum(needs_list)
+                    except:
+                        failed+=1
+                        user.waitingTimeSquare += (today - customer.today) ** 2
+                        user.rejectedNum += 1
+                except:
+                    pass
 
 
+        today += 1
+        user.progress = today
+        user.soldNum=sold_count
+        user.waitings = "".join(waiting_line)
+        user.failedNum += failed
+        user.itemstatus = "".join(map(lambda x : str(x).zfill(3),itemnums))
+
+        user.save()
+
+        if today == senarioinfo.max_time:
+            user.end = True
 
 
-
-        return Response()
+        return Response(data={"serve failed":failed, "time":today})
 # Create your views here.

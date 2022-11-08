@@ -30,6 +30,9 @@ class senarioInfo(models.Model):
     items=models.IntegerField()
     customer_capacity=models.IntegerField()
     max_item=models.IntegerField()
+    order_nums = models.IntegerField()
+    customer_nums = models.IntegerField()
+
 
 class problem(models.Model):
     senarioNum=models.IntegerField()
